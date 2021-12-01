@@ -50,18 +50,6 @@
     "url": "https://github.com/chainsafe/filecoin-metamask-snap/issues"
   },
   "homepage": "https://github.com/chainsafe/filecoin-metamask-snap#readme",
-  "web3Wallet": {
-    "bundle": {
-      "local": "dist/bundle.js",
-      "url": "http://localhost:8081/dist/bundle.js"
-    },
-    "initialPermissions": {
-      "snap_confirm": {},
-      "snap_getBip44Entropy_1": {},
-      "snap_getBip44Entropy_461": {},
-      "snap_manageState": {}
-    }
-  },
   "devDependencies": {
     "@chainsafe/filsnap-types": "^1.0.0",
     "@nodefactory/snaps-cli": "^1.5.0",
