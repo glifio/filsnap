@@ -12,6 +12,7 @@ import {
 } from '@material-ui/core/';
 import {Alert} from "@material-ui/lab";
 import {FilecoinSnapApi} from "@chainsafe/filsnap-types";
+import { attoFilToFil, filToAttoFil } from "../../services/utils";
 
 interface ITransferProps {
     network: string,
@@ -23,10 +24,11 @@ type AlertSeverity = "success" | "warning" | "info" | "error";
 
 export const Transfer: React.FC<ITransferProps> = ({network, api, onNewMessageCallback}) => {
     const [recipient, setRecipient] = useState<string>("");
-    const [amount, setAmount] = useState<string | number>("");
+    const [amount, setAmount] = useState<string>("");
     const [gasLimit, setGasLimit] = useState<string>("0");
     const [gasPremium, setGasPremium] = useState<string>("0");
     const [gasFeeCap, setGasFeeCap] = useState<string>("0");
+    const [maxFee, setMaxFee] = useState<string>("0");
     
     const [alert, setAlert] = useState(false);
     const [severity, setSeverity] = useState("success" as AlertSeverity);
@@ -48,6 +50,10 @@ export const Transfer: React.FC<ITransferProps> = ({network, api, onNewMessageCa
         setGasPremium(event.target.value);
     }, [setGasPremium]);
     
+    const handleMaxFeeChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        setMaxFee(event.target.value);
+    }, [setMaxFee]);
+
     const handleGasFeeCapChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setGasFeeCap(event.target.value);
     }, [setGasFeeCap]);
@@ -60,37 +66,50 @@ export const Transfer: React.FC<ITransferProps> = ({network, api, onNewMessageCa
 
     const onAutoFillGas = useCallback(async () => {
         if (recipient && amount && api) {
-            const messageEstimate = await api.calculateGasForMessage({
+
+            const messageEstimate = (maxFee === "0") ? await api.calculateGasForMessage({
                 to: recipient,
-                value: BigInt(amount).toString()
-            });
-            setGasPremium(messageEstimate.gaspremium);
-            setGasFeeCap(messageEstimate.gasfeecap);
-            setGasLimit(messageEstimate.gaslimit.toString());
+                value: BigInt(filToAttoFil(amount)).toString()
+            }) : await api.calculateGasForMessage({
+                to: recipient,
+                value: BigInt(filToAttoFil(amount)).toString()
+            }, maxFee);
+            setGasPremium(attoFilToFil(messageEstimate.gaspremium));
+            setGasFeeCap(attoFilToFil(messageEstimate.gasfeecap));
+            setGasLimit(attoFilToFil(messageEstimate.gaslimit.toString()));
+            setMaxFee(attoFilToFil(messageEstimate.maxfee));
         } else {
             showAlert("error", "Please first fill in Recipient and Amount fields");
         }
-    }, [recipient, amount, api]);
+    }, [recipient, amount, maxFee, api]);
 
     const onSubmit = useCallback(async () => {
         if (amount && recipient && api) {
             // Temporary signature method until sending is implemented
-            const signedMessage = await api.signMessage({
+            const signedMessageResponse = await api.signMessage({
                 to: recipient,
-                value: BigInt(amount).toString(),
-                gaslimit: Number(gasLimit),
-                gasfeecap: gasFeeCap,
-                gaspremium: gasPremium
+                value: BigInt(filToAttoFil(amount)).toString(),
+                gaslimit: Number(filToAttoFil(gasLimit)),
+                gasfeecap: filToAttoFil(gasFeeCap),
+                gaspremium: filToAttoFil(gasPremium)
             });
-            showAlert("info", `Message signature: ${signedMessage.signature.data}`);
-            const txResult = await api.sendMessage(signedMessage);
-            showAlert("info", `Message sent with cid: ${txResult.cid}`);
+            if(signedMessageResponse.error != null) {
+                showAlert("error", "Error on signing message");
+            } else if(signedMessageResponse.error == null && !signedMessageResponse.confirmed) {
+                showAlert("info", "Signing message declined");
+            } else {
+                showAlert("info", `Message signature: ${signedMessageResponse.signedMessage.signature.data}`);
+                const txResult = await api.sendMessage(signedMessageResponse.signedMessage);
+                showAlert("info", `Message sent with cid: ${txResult.cid}`);
+            }
+
             // clear form
             setAmount("");
             setRecipient("");
             setGasFeeCap("0");
             setGasPremium("0");
             setGasLimit("0");
+            setMaxFee("0");
             // inform to refresh messages display
             onNewMessageCallback();
         }
@@ -107,20 +126,28 @@ export const Transfer: React.FC<ITransferProps> = ({network, api, onNewMessageCa
                         </TextField>
                         <Box m="0.5rem"/>
                         <TextField
-                        InputProps={{startAdornment: <InputAdornment position="start">{`AttoFIL`}</InputAdornment>}}
+                        InputProps={{startAdornment: <InputAdornment position="start">FIL</InputAdornment>}}
                         onChange={handleAmountChange} size="medium" fullWidth id="amount" label="Amount" variant="outlined" value={amount}>
                         </TextField>
                         <Box m="0.5rem"/>
                         <TextField
-                            onChange={handleGasLimitChange} size="medium" fullWidth id="gaslimit" label="Gas Limit" variant="outlined" value={gasLimit + " AttoFIL"}>
+                            InputProps={{startAdornment: <InputAdornment position="start">FIL</InputAdornment>}}
+                            onChange={handleGasLimitChange} size="medium" fullWidth id="gaslimit" label="Gas Limit" variant="outlined" value={gasLimit}>
                         </TextField>
                         <Box m="0.5rem"/>
                         <TextField
-                            onChange={handleGasPremiumChange} size="medium" fullWidth id="gaspremium" label="Gas Premium" variant="outlined" value={gasPremium + " AttoFIL"}>
+                            InputProps={{startAdornment: <InputAdornment position="start">FIL</InputAdornment>}}
+                            onChange={handleGasPremiumChange} size="medium" fullWidth id="gaspremium" label="Gas Premium" variant="outlined" value={gasPremium}>
                         </TextField>
                         <Box m="0.5rem"/>
                         <TextField
-                            onChange={handleGasFeeCapChange} size="medium" fullWidth id="gasfeecap" label="Gas Fee Cap" variant="outlined" value={gasFeeCap + " AttoFIL"}>
+                            InputProps={{startAdornment: <InputAdornment position="start">FIL</InputAdornment>}}
+                            onChange={handleGasFeeCapChange} size="medium" fullWidth id="gasfeecap" label="Gas Fee Cap" variant="outlined" value={gasFeeCap}>
+                        </TextField>
+                        <Box m="0.5rem"/>
+                        <TextField
+                            InputProps={{startAdornment: <InputAdornment position="start">FIL</InputAdornment>}}
+                            onChange={handleMaxFeeChange} size="medium" fullWidth id="maxfee" label="Max fee (0.1 FIL if not set)" variant="outlined" value={maxFee}>
                         </TextField>
                     </Grid>
                 </Grid>

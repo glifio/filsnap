@@ -50,6 +50,7 @@ export interface GetGasForMessageRequest {
   method: "fil_getGasForMessage";
   params: {
     message: MessageRequest;
+    maxFee?: string;
   };
 }
 
@@ -113,7 +114,7 @@ export interface Message {
   gaspremium: string;
   gaslimit: number;
   method: number;
-  params?: [];
+  params?: string;
 }
 
 export interface SignedMessage {
@@ -126,6 +127,18 @@ export interface MessageSignature {
   type: number;
 }
 
+export interface SignMessageResponse {
+  signedMessage: SignedMessage
+  confirmed: boolean
+  error: Error
+}
+
+export interface SignRawMessageResponse {
+  signature: string
+  confirmed: boolean
+  error: Error
+}
+
 export interface MessageRequest {
   to: string;
   value: string;
@@ -133,12 +146,15 @@ export interface MessageRequest {
   gasfeecap?: string;
   gaspremium?: string;
   nonce?: number;
+  method?: number;
+  params?: string;
 }
 
 export interface MessageGasEstimate {
   gaslimit: number;
   gasfeecap: string;
   gaspremium: string;
+  maxfee: string;
 }
 
 export interface MessageStatus {
@@ -148,6 +164,7 @@ export interface MessageStatus {
 
 export type FilecoinNetwork = "f" | "t";
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface FilecoinEventApi {}
 
 export interface FilecoinSnapApi {
@@ -156,11 +173,11 @@ export interface FilecoinSnapApi {
   getBalance(): Promise<string>;
   exportPrivateKey(): Promise<string>;
   configure(configuration: Partial<SnapConfig>): Promise<void>;
-  signMessage(message: MessageRequest): Promise<SignedMessage>;
-  signMessageRaw(message: string): Promise<string>;
+  signMessage(message: MessageRequest): Promise<SignMessageResponse>;
+  signMessageRaw(message: string): Promise<SignRawMessageResponse>;
   sendMessage(signedMessage: SignedMessage): Promise<MessageStatus>;
   getMessages(): Promise<MessageStatus[]>;
-  calculateGasForMessage(message: MessageRequest): Promise<MessageGasEstimate>;
+  calculateGasForMessage(message: MessageRequest, maxFee?: string): Promise<MessageGasEstimate>;
 }
 
 export interface KeyPair {

@@ -20,6 +20,7 @@ export const Dashboard = () => {
     const [address, setAddress] = useState("");
     const [publicKey, setPublicKey] = useState("");
     const [messages, setMessages] = useState<MessageStatus[]>([]);
+    const [networks, setNetworks] =  useState<"t"|"f">("f")
 
     const [balanceChange, setBalanceChange] = useState<boolean>(false);
 
@@ -31,9 +32,14 @@ export const Dashboard = () => {
         const selectedNetwork = event.target.value as "f" | "t";
         if (selectedNetwork === network) return;
         if (api) {
-            await api.configure({network: selectedNetwork});
-            setNetwork(selectedNetwork);
-            setMessages(await api.getMessages());
+            try {
+                await api.configure({network: selectedNetwork});
+                setNetworks(selectedNetwork)
+                setNetwork(selectedNetwork);
+                setMessages(await api.getMessages());
+            } catch(e) {
+                console.error("Unable to change network", e)
+            }
         }
     };
 
@@ -59,7 +65,6 @@ export const Dashboard = () => {
                 setPublicKey(await api.getPublicKey());
                 setBalance(await api.getBalance());
                 setMessages(await api.getMessages());
-                console.log(await api.getMessages());
             }
         })();
     }, [api, network]);
@@ -99,8 +104,8 @@ export const Dashboard = () => {
                     <Box m="1rem" alignSelf="baseline">
                         <InputLabel>Network</InputLabel>
                         <Select
-                            defaultValue={"f"}
                             onChange={handleNetworkChange}
+                            value={networks}
                         >
                             <MenuItem value={"t"}>Testnet</MenuItem>
                             <MenuItem value={"f"}>Mainnet</MenuItem>
